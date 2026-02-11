@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -18,6 +19,29 @@ def load_scoring_rules(config_path: Optional[Path] = None) -> Dict:
         config_path = _repo_root() / "configs" / "scoring_rules.yaml"
     with open(config_path, "r", encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def load_thresholds(config_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Load threshold config from JSON file."""
+    if config_path is None:
+        config_path = _repo_root() / "configs" / "thresholds.v1.json"
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    return data["labels"]
+
+
+def score_to_label(score: float, thresholds: Optional[List[Dict[str, Any]]] = None) -> str:
+    """Map a numeric score to a human-readable label using threshold config."""
+    if thresholds is None:
+        thresholds = load_thresholds()
+    for t in thresholds:
+        lo = t.get("min_score")
+        hi = t.get("max_score_exclusive")
+        if lo is not None and score < lo:
+            continue
+        if hi is not None and score >= hi:
+            continue
+        return t["label"]
+    return thresholds[-1]["label"]
 
 
 def _resolve_config_key(

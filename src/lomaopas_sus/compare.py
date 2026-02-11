@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from lomaopas_sus.models import SustainabilityScore
+from lomaopas_sus.scoring import score_to_label, load_thresholds
 
 
 def load_jsonl_data(filepath: Path) -> List[Dict[str, Any]]:
@@ -203,7 +204,12 @@ def compare_scores_and_facts(
             f"| {counts['both_have']} | {counts['diff_value']} |\n"
         )
 
-    # --- Score Deltas ---
+    # --- Score Deltas with Labels ---
+    try:
+        thresholds = load_thresholds()
+    except Exception:
+        thresholds = None
+
     report_lines.append("\n## Score Deltas (Local vs. OpenAI)\n\n")
     score_deltas = []
     for hotel_name in all_hotel_names:
@@ -216,16 +222,44 @@ def compare_scores_and_facts(
     score_deltas.sort(key=lambda x: x[0], reverse=True)
 
     if score_deltas:
-        report_lines.append("| Hotel Name | Local Score | OpenAI Score | Delta |\n")
-        report_lines.append("|---|---|---|---|\n")
+        if thresholds:
+            report_lines.append("| Hotel Name | Local Score | Local Label | OpenAI Score | OpenAI Label | Delta |\n")
+            report_lines.append("|---|---|---|---|---|---|\n")
+        else:
+            report_lines.append("| Hotel Name | Local Score | OpenAI Score | Delta |\n")
+            report_lines.append("|---|---|---|---|\n")
         for _, hotel_name, delta in score_deltas:
             local_s = local_map[hotel_name].total_score_final
             openai_s = openai_map[hotel_name].total_score_final
-            report_lines.append(
-                f"| {hotel_name} | {local_s:.2f} | {openai_s:.2f} | {delta:+.2f} |\n"
-            )
+            if thresholds:
+                ll = score_to_label(local_s, thresholds)
+                ol = score_to_label(openai_s, thresholds)
+                report_lines.append(
+                    f"| {hotel_name} | {local_s:.2f} | {ll} | {openai_s:.2f} | {ol} | {delta:+.2f} |\n"
+                )
+            else:
+                report_lines.append(
+                    f"| {hotel_name} | {local_s:.2f} | {openai_s:.2f} | {delta:+.2f} |\n"
+                )
     else:
         report_lines.append("No hotels with comparable scores to calculate deltas.\n")
+
+    # --- Label Agreement ---
+    if thresholds:
+        report_lines.append("\n## Label Agreement\n\n")
+        agree = 0
+        total_cmp = 0
+        for hotel_name in comparable:
+            ls = local_map[hotel_name].total_score_final
+            os_ = openai_map[hotel_name].total_score_final
+            ll = score_to_label(ls, thresholds)
+            ol = score_to_label(os_, thresholds)
+            total_cmp += 1
+            if ll == ol:
+                agree += 1
+        pct = (agree / total_cmp * 100) if total_cmp > 0 else 0
+        report_lines.append(f"- **Agreement:** {agree}/{total_cmp} = **{pct:.0f}%**\n")
+        report_lines.append(f"- Thresholds: `configs/thresholds.v1.json`\n\n")
 
     # --- Example Diffs (top 3 biggest deltas) ---
     report_lines.append("\n## Example Diffs (Top 3 Biggest Deltas)\n\n")

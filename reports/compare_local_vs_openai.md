@@ -55,28 +55,34 @@ from a local LLM (Ollama) and OpenAI's LLM.
 
 ## Score Deltas (Local vs. OpenAI)
 
-| Hotel Name | Local Score | OpenAI Score | Delta |
-|---|---|---|---|
-| MAC Puerto Marina Benalmádena | 19.42 | 0.50 | +18.92 |
-| Hotel ILUNION Fuengirola | 2.47 | 5.59 | -3.12 |
-| Hotel Puente Romano | 0.00 | 2.50 | -2.50 |
-| Málaga Hills Boutique & Wellness Eco-Hotel | 7.92 | 9.52 | -1.60 |
-| Hotel San Fermín Benalmádena | 0.00 | 1.55 | -1.55 |
-| Marbella Club Hotel | 2.47 | 1.55 | +0.93 |
-| Gran Hotel Miramar GL | 2.40 | 1.50 | +0.90 |
-| Fuengirola Beach Apartamentos Turísticos | 0.00 | 0.50 | -0.50 |
-| Fuerte Marbella | 2.47 | 2.16 | +0.31 |
-| Amàre Beach Hotel Marbella | 0.00 | 0.00 | +0.00 |
-| Hard Rock Hotel Marbella | 0.00 | 0.00 | +0.00 |
-| Holiday World Resort Benalmádena | 0.00 | 0.00 | +0.00 |
-| Hotel Best Siroco Benalmádena | 0.00 | 0.00 | +0.00 |
-| Hotel La Barracuda Torremolinos | 0.00 | 0.00 | +0.00 |
-| Hotel Las Pirámides Resort Fuengirola | 0.00 | 0.00 | +0.00 |
-| Hotel Torremar Torre del Mar | 0.00 | 0.00 | +0.00 |
-| Kempinski Hotel Bahía Estepona | 0.00 | 0.00 | +0.00 |
-| Nobu Hotel Marbella | 0.00 | 0.00 | +0.00 |
-| Sunset Beach Club Benalmádena | 0.00 | 0.00 | +0.00 |
-| Vincci Aleysa Boutique & Spa Benalmádena | 0.00 | 0.00 | +0.00 |
+| Hotel Name | Local Score | Local Label | OpenAI Score | OpenAI Label | Delta |
+|---|---|---|---|---|---|
+| MAC Puerto Marina Benalmádena | 19.42 | Excellent | 0.50 | Basic | +18.92 |
+| Hotel ILUNION Fuengirola | 2.47 | Basic | 5.59 | Good | -3.12 |
+| Hotel Puente Romano | 0.00 | Insufficient Evidence | 2.50 | Basic | -2.50 |
+| Málaga Hills Boutique & Wellness Eco-Hotel | 7.92 | Good | 9.52 | Good | -1.60 |
+| Hotel San Fermín Benalmádena | 0.00 | Insufficient Evidence | 1.55 | Basic | -1.55 |
+| Marbella Club Hotel | 2.47 | Basic | 1.55 | Basic | +0.93 |
+| Gran Hotel Miramar GL | 2.40 | Basic | 1.50 | Basic | +0.90 |
+| Fuengirola Beach Apartamentos Turísticos | 0.00 | Insufficient Evidence | 0.50 | Basic | -0.50 |
+| Fuerte Marbella | 2.47 | Basic | 2.16 | Basic | +0.31 |
+| Amàre Beach Hotel Marbella | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Hard Rock Hotel Marbella | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Holiday World Resort Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Hotel Best Siroco Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Hotel La Barracuda Torremolinos | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Hotel Las Pirámides Resort Fuengirola | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Hotel Torremar Torre del Mar | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Kempinski Hotel Bahía Estepona | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Nobu Hotel Marbella | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Sunset Beach Club Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Vincci Aleysa Boutique & Spa Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+
+## Label Agreement
+
+- **Agreement:** 15/20 = **75%**
+- Thresholds: `configs/thresholds.v1.json`
+
 
 ## Example Diffs (Top 3 Biggest Deltas)
 
