@@ -1,0 +1,38 @@
+{
+  "version": "v1.2",
+  "description": "Sustainability score to label mapping. Recalibrated on 50 Costa del Sol hotels dual-run (Ollama + OpenAI, 2026-02-11). Thresholds unchanged from v1; evidence gating v1.1 active.",
+  "labels": [
+    {
+      "label": "Insufficient Evidence",
+      "min_score": null,
+      "max_score_exclusive": 0.5,
+      "description": "No sustainability information found on the hotel website, or extraction confidence too low to produce any score."
+    },
+    {
+      "label": "Basic",
+      "min_score": 0.5,
+      "max_score_exclusive": 5.0,
+      "description": "Minimal sustainability signals: one or two facts such as local sourcing, a quality badge, or a general eco-friendly statement. No systematic program evident."
+    },
+    {
+      "label": "Good",
+      "min_score": 5.0,
+      "max_score_exclusive": 15.0,
+      "description": "Clear sustainability evidence across multiple categories: renewable energy, certifications, community engagement, or published targets. Hotel actively communicates sustainability efforts."
+    },
+    {
+      "label": "Excellent",
+      "min_score": 15.0,
+      "max_score_exclusive": null,
+      "description": "Comprehensive sustainability program with evidence in energy, water, waste, community, and certifications. Strong transparency with published targets and third-party verification."
+    }
+  ],
+  "evidence_gate": {
+    "version": "v1.1",
+    "rules": {
+      "excellent_min_claims": 3,
+      "excellent_requires_cert_or_action": true,
+      "min_claims_for_above_basic": 2
+    }
+  }
+}

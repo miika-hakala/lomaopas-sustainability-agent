@@ -103,15 +103,40 @@ def _prepare_text_for_local(text: str) -> str:
     return "".join(parts)
 
 
+def _load_hotels(dataset_path: Path) -> list[Hotel]:
+    """Load hotels from JSON array or JSONL file."""
+    text = dataset_path.read_text(encoding="utf-8").strip()
+    if text.startswith("["):
+        # JSON array format (legacy)
+        return [Hotel.model_validate(h) for h in json.loads(text)]
+    # JSONL format
+    hotels = []
+    for line in text.splitlines():
+        if line.strip():
+            data = json.loads(line)
+            # Map primary_url -> website if needed
+            if "primary_url" in data and "website" not in data:
+                data["website"] = data.pop("primary_url")
+            hotels.append(Hotel.model_validate(data))
+    return hotels
+
+
 async def run_command(args: argparse.Namespace) -> None:
     print(f"Running pipeline with mode={args.mode}, limit={args.limit}")
 
-    hotels_config_path = CONFIGS_DIR / "costa_del_sol_hotels.json"
+    # Determine dataset path
+    if args.dataset:
+        dataset_path = Path(args.dataset)
+        if not dataset_path.is_absolute():
+            dataset_path = _repo_root() / dataset_path
+    else:
+        dataset_path = CONFIGS_DIR / "costa_del_sol_hotels.json"
+
     extract_schema_path = CONFIGS_DIR / "extract_schema.json"
     scoring_rules_path = CONFIGS_DIR / "scoring_rules.yaml"
 
-    if not hotels_config_path.exists():
-        print(f"Error: Hotels config file not found at {hotels_config_path}")
+    if not dataset_path.exists():
+        print(f"Error: Dataset file not found at {dataset_path}")
         return
     if not extract_schema_path.exists():
         print(f"Error: Extraction schema file not found at {extract_schema_path}")
@@ -120,16 +145,20 @@ async def run_command(args: argparse.Namespace) -> None:
         print(f"Error: Scoring rules file not found at {scoring_rules_path}")
         return
 
-    hotels_data = json.loads(hotels_config_path.read_text(encoding="utf-8"))
-    hotels = [Hotel.model_validate(h) for h in hotels_data]
+    hotels = _load_hotels(dataset_path)
+    print(f"Loaded {len(hotels)} hotels from {dataset_path}")
 
     extraction_schema = json.loads(extract_schema_path.read_text(encoding="utf-8"))
     scoring_rules = load_scoring_rules(scoring_rules_path)
 
     total = min(args.limit, len(hotels)) if args.limit else len(hotels)
 
-    local_jsonl_path = DATASET_DIR / "costa_del_sol_20_local.jsonl"
-    openai_jsonl_path = DATASET_DIR / "costa_del_sol_20_openai.jsonl"
+    # Determine output directory from dataset location
+    output_dir = dataset_path.parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stem = dataset_path.stem  # e.g. "costa_del_sol_50"
+    local_jsonl_path = output_dir / f"{stem}_local.jsonl"
+    openai_jsonl_path = output_dir / f"{stem}_openai.jsonl"
 
     # Per-run raw output directory
     runs_dir = _repo_root() / "runs" / date.today().isoformat()
@@ -253,11 +282,22 @@ async def run_command(args: argparse.Namespace) -> None:
     print(f"Raw outputs saved to {runs_dir}/")
 
 
-def compare_command(_: argparse.Namespace) -> None:
+def compare_command(args: argparse.Namespace) -> None:
     print("Generating comparison report...")
-    local_jsonl_path = DATASET_DIR / "costa_del_sol_20_local.jsonl"
-    openai_jsonl_path = DATASET_DIR / "costa_del_sol_20_openai.jsonl"
-    report_path = REPORTS_DIR / "compare_local_vs_openai.md"
+
+    if args.dataset:
+        dataset_path = Path(args.dataset)
+        if not dataset_path.is_absolute():
+            dataset_path = _repo_root() / dataset_path
+        output_dir = dataset_path.parent
+        stem = dataset_path.stem
+        local_jsonl_path = output_dir / f"{stem}_local.jsonl"
+        openai_jsonl_path = output_dir / f"{stem}_openai.jsonl"
+        report_path = REPORTS_DIR / f"compare_local_vs_openai_{stem}.md"
+    else:
+        local_jsonl_path = DATASET_DIR / "costa_del_sol_20_local.jsonl"
+        openai_jsonl_path = DATASET_DIR / "costa_del_sol_20_openai.jsonl"
+        report_path = REPORTS_DIR / "compare_local_vs_openai.md"
 
     local_data = load_jsonl_data(local_jsonl_path)
     openai_data = load_jsonl_data(openai_jsonl_path)
@@ -325,10 +365,22 @@ def main() -> None:
         action="store_true",
         help="Force re-extraction by LLMs, bypassing cache",
     )
+    run_parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Path to hotel dataset file (JSON array or JSONL)",
+    )
     run_parser.set_defaults(func=run_command)
 
     compare_parser = subparsers.add_parser(
         "compare", help="Compare local vs. OpenAI extraction results"
+    )
+    compare_parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Path to hotel dataset file (to find matching output files)",
     )
     compare_parser.set_defaults(func=compare_command)
 

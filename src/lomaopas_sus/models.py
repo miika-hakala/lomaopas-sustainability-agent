@@ -96,5 +96,7 @@ class Hotel(BaseModel):
 
     name: str
     website: HttpUrl
+    hotel_id: Optional[str] = None
+    location: Optional[str] = None
     booking_url: Optional[HttpUrl] = None
     fallback_urls: Optional[List[str]] = None
