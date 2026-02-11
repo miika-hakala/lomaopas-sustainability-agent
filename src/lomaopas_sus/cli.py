@@ -75,6 +75,13 @@ async def run_command(args: argparse.Namespace) -> None:
                 text=f"{cleaned_text}\n{hotel.website}",
                 schema_json=json.dumps(extraction_schema),
             )
+            # Preprocess ollama_response to handle cases where Ollama returns empty lists instead of empty dicts
+            # for sub-models that expect dicts.
+            if ollama_response and isinstance(ollama_response, dict):
+                for key in ["energy_efficiency", "water_conservation", "waste_management", "local_community_engagement", "certifications"]:
+                    if key in ollama_response and ollama_response[key] == []:
+                        ollama_response[key] = {}
+            
             ollama_facts = ExtractedFacts.model_validate(ollama_response) if ollama_response else None
             ollama_evidence = {} # Ollama extractor does not provide evidence
             ollama_confidence = 0.8 # Default confidence for Ollama
@@ -84,7 +91,7 @@ async def run_command(args: argparse.Namespace) -> None:
                     ollama_facts, ollama_confidence, scoring_rules
                 )
                 local_results.append(
-                    {"hotel": hotel.model_dump(mode="json"), "score": ollama_score.model_dump()}
+                    {"hotel": hotel.model_dump(mode="json"), "score": ollama_score.model_dump(mode="json")}
                 )
                 print(f"  Ollama Score: {ollama_score.total_score_final:.2f}")
             else:
@@ -103,7 +110,7 @@ async def run_command(args: argparse.Namespace) -> None:
                     openai_facts, openai_confidence, scoring_rules
                 )
                 openai_results.append(
-                    {"hotel": hotel.model_dump(mode="json"), "score": openai_score.model_dump()}
+                    {"hotel": hotel.model_dump(mode="json"), "score": openai_score.model_dump(mode="json")}
                 )
                 print(f"  OpenAI Score: {openai_score.total_score_final:.2f}")
             else:
