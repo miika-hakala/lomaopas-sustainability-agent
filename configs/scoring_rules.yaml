@@ -1,0 +1,69 @@
+score_model_version: "v1.0"
+
+# Points for individual facts, regardless of their top-level category
+# These points will be summed up and then mapped to the overarching categories (Actions, Transparency, Certifications)
+fact_scores:
+  # Energy Efficiency (contributes to Actions and Transparency)
+  energy_efficiency:
+    solar_panels_used: 10
+    led_lighting_used: 5
+    renewable_energy_sources_per_item: 1 # Max 5 points from this list
+    energy_reduction_targets_non_empty: 10 # Score if the string is non-empty
+
+  # Water Conservation (contributes to Actions and Transparency)
+  water_conservation:
+    water_saving_fixtures: 7
+    linen_reuse_program: 5
+    rainwater_harvesting: 8
+    water_reduction_targets_non_empty: 10 # Score if the string is non-empty
+
+  # Waste Management (contributes to Actions)
+  waste_management:
+    recycling_program: 7
+    plastic_reduction_initiatives_per_item: 1 # Max 5 points from this list
+    food_waste_reduction: 5
+    composting_program: 5
+
+  # Local Community Engagement (contributes to Actions and Transparency)
+  local_community_engagement:
+    local_sourcing_food: 5
+    local_employment_initiatives: 5
+    community_support_programs_non_empty: 5 # Score if the string is non-empty
+
+  # Certifications (contributes to Certifications)
+  certifications:
+    eco_certifications_per_item: 2 # Max 10 points from this list
+    other_sustainability_badges_per_item: 1 # Max 5 points from this list
+
+# Definition of overarching scoring categories and their weights (sum to 1.0)
+# Scoring.py will map individual facts to these categories for final score calculation
+overall_score_weights:
+  actions: 0.60
+  transparency: 0.25
+  certifications: 0.15
+
+# Maximum raw points that can be achieved for each individual fact/list type
+# Used by scoring.py to normalize individual fact contributions before summing into overall categories
+fact_max_raw_points:
+  energy_efficiency:
+    solar_panels_used: 10
+    led_lighting_used: 5
+    renewable_energy_sources_per_item: 5
+    energy_reduction_targets_non_empty: 10
+  water_conservation:
+    water_saving_fixtures: 7
+    linen_reuse_program: 5
+    rainwater_harvesting: 8
+    water_reduction_targets_non_empty: 10
+  waste_management:
+    recycling_program: 7
+    plastic_reduction_initiatives_per_item: 5
+    food_waste_reduction: 5
+    composting_program: 5
+  local_community_engagement:
+    local_sourcing_food: 5
+    local_employment_initiatives: 5
+    community_support_programs_non_empty: 5
+  certifications:
+    eco_certifications_per_item: 10
+    other_sustainability_badges_per_item: 5

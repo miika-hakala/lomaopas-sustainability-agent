@@ -1,0 +1,42 @@
+{
+  "energy_efficiency": {
+    "solar_panels_used": true,
+    "led_lighting_used": true,
+    "renewable_energy_sources": [
+      "solar",
+      "wind"
+    ],
+    "energy_reduction_targets": "reduce by 20% by 2030"
+  },
+  "water_conservation": {
+    "water_saving_fixtures": true,
+    "linen_reuse_program": true,
+    "rainwater_harvesting": false,
+    "water_reduction_targets": ""
+  },
+  "waste_management": {
+    "recycling_program": true,
+    "plastic_reduction_initiatives": [
+      "no single-use plastics"
+    ],
+    "food_waste_reduction": true,
+    "composting_program": false
+  },
+  "local_community_engagement": {
+    "local_sourcing_food": true,
+    "local_employment_initiatives": false,
+    "community_support_programs": "supports local tourism projects"
+  },
+  "certifications": {
+    "eco_certifications": [
+      "Green Key"
+    ],
+    "other_sustainability_badges": []
+  },
+  "evidence_snippets": [
+    {
+      "url": "https://example.com/sustainability",
+      "snippet": "We use solar panels and LED lighting."
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sustainability Facts Schema",
+  "description": "Schema for extracting sustainability facts from hotel websites.",
+  "type": "object",
+  "properties": {
+    "energy_efficiency": {
+      "type": "object",
+      "properties": {
+        "solar_panels_used": {
+          "type": "boolean",
+          "description": "True if solar panels are mentioned as being used."
+        },
+        "led_lighting_used": {
+          "type": "boolean",
+          "description": "True if LED lighting is mentioned as being used."
+        },
+        "renewable_energy_sources": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of specific renewable energy sources mentioned (e.g., 'wind', 'geothermal')."
+        },
+        "energy_reduction_targets": {
+          "type": "string",
+          "description": "Description of any stated energy reduction targets."
+        }
+      },
+      "additionalProperties": false
+    },
+    "water_conservation": {
+      "type": "object",
+      "properties": {
+        "water_saving_fixtures": {
+          "type": "boolean",
+          "description": "True if water-saving fixtures (e.g., low-flow showers) are mentioned."
+        },
+        "linen_reuse_program": {
+          "type": "boolean",
+          "description": "True if a linen reuse program is mentioned."
+        },
+        "rainwater_harvesting": {
+          "type": "boolean",
+          "description": "True if rainwater harvesting is mentioned."
+        },
+        "water_reduction_targets": {
+          "type": "string",
+          "description": "Description of any stated water reduction targets."
+        }
+      },
+      "additionalProperties": false
+    },
+    "waste_management": {
+      "type": "object",
+      "properties": {
+        "recycling_program": {
+          "type": "boolean",
+          "description": "True if a general recycling program is mentioned."
+        },
+        "plastic_reduction_initiatives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of specific plastic reduction initiatives (e.g., 'no single-use plastics', 'refillable toiletries')."
+        },
+        "food_waste_reduction": {
+          "type": "boolean",
+          "description": "True if food waste reduction efforts are mentioned."
+        },
+        "composting_program": {
+          "type": "boolean",
+          "description": "True if a composting program is mentioned."
+        }
+      },
+      "additionalProperties": false
+    },
+    "local_community_engagement": {
+      "type": "object",
+      "properties": {
+        "local_sourcing_food": {
+          "type": "boolean",
+          "description": "True if sourcing food locally is mentioned."
+        },
+        "local_employment_initiatives": {
+          "type": "boolean",
+          "description": "True if supporting local employment is mentioned."
+        },
+        "community_support_programs": {
+          "type": "string",
+          "description": "Description of any programs supporting the local community."
+        }
+      },
+      "additionalProperties": false
+    },
+    "certifications": {
+      "type": "object",
+      "properties": {
+        "eco_certifications": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of specific eco-certifications mentioned (e.g., 'Green Key', 'Travelife')."
+        },
+        "other_sustainability_badges": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of other sustainability badges or awards mentioned."
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence_snippets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "format": "url" },
+          "snippet": { "type": "string" }
+        },
+        "required": ["url", "snippet"]
+      },
+      "description": "Snippets from the website that serve as evidence for the extracted facts."
+    }
+  },
+  "additionalProperties": true
+}
