@@ -10,6 +10,7 @@ from lomaopas_sus.models import Hotel, ExtractedFacts
 from lomaopas_sus.scrape import scrape_and_cache
 from lomaopas_sus.extract_openai import extract_facts_openai
 from lomaopas_sus.extract_ollama import OllamaExtractor
+from lomaopas_sus.normalize import normalize_facts_dict, normalize_extracted_facts
 from lomaopas_sus.scoring import load_scoring_rules, calculate_sustainability_score
 from lomaopas_sus.compare import load_jsonl_data, compare_scores_and_facts
 
@@ -61,6 +62,8 @@ async def run_command(args: argparse.Namespace) -> None:
     extraction_schema = json.loads(extract_schema_path.read_text(encoding="utf-8"))
     scoring_rules = load_scoring_rules(scoring_rules_path)
 
+    total = min(args.limit, len(hotels)) if args.limit else len(hotels)
+
     local_jsonl_path = DATASET_DIR / "costa_del_sol_20_local.jsonl"
     openai_jsonl_path = DATASET_DIR / "costa_del_sol_20_openai.jsonl"
 
@@ -69,23 +72,39 @@ async def run_command(args: argparse.Namespace) -> None:
 
     local_results = []
     openai_results = []
+    scrape_ok = 0
+    scrape_fail = 0
 
     for i, hotel in enumerate(hotels):
         if args.limit and i >= args.limit:
             break
 
-        print(f"\n[{i+1}/{args.limit or len(hotels)}] Processing hotel: {hotel.name} ({hotel.website})")
+        print(f"\n[{i+1}/{total}] Processing hotel: {hotel.name} ({hotel.website})")
 
-        cleaned_text = await scrape_and_cache(str(hotel.website), force_scrape=args.force_scrape)
+        cleaned_text, source_type = await scrape_and_cache(
+            str(hotel.website),
+            force_scrape=args.force_scrape,
+            hotel_name=hotel.name,
+            fallback_urls=hotel.fallback_urls,
+        )
         if not cleaned_text:
             print(f"  SKIP: scraping failure for {hotel.name}")
+            scrape_fail += 1
             continue
+
+        scrape_ok += 1
+        if source_type != "cache":
+            print(f"  Scraped ({source_type}), {len(cleaned_text)} chars")
+
+        # Cap text length to avoid overwhelming extractors
+        max_extract_chars = 15_000
+        extract_text = cleaned_text[:max_extract_chars] if len(cleaned_text) > max_extract_chars else cleaned_text
 
         if args.mode in ["local", "all"]:
             print(f"  Extracting with Ollama for {hotel.name}...")
             ollama_response, ollama_meta = ollama_extractor.extract(
                 hotel_name=hotel.name,
-                text=f"{cleaned_text}\n{hotel.website}",
+                text=f"{extract_text}\n{hotel.website}",
                 schema_json=json.dumps(extraction_schema),
             )
             # Preprocess: Ollama sometimes returns [] instead of {} for sub-models
@@ -94,6 +113,9 @@ async def run_command(args: argparse.Namespace) -> None:
                     if key in ollama_response and ollama_response[key] == []:
                         ollama_response[key] = {}
 
+                # Normalize before validation
+                ollama_response = normalize_facts_dict(ollama_response)
+
             ollama_facts = ExtractedFacts.model_validate(ollama_response) if ollama_response else None
             ollama_confidence = 0.8
 
@@ -101,7 +123,7 @@ async def run_command(args: argparse.Namespace) -> None:
             _save_raw_output(runs_dir, "local", hotel.name, {
                 "hotel": hotel.model_dump(mode="json"),
                 "raw_response": ollama_response,
-                "meta": ollama_meta,
+                "meta": {**ollama_meta, "normalized": True, "source_type": source_type},
             })
 
             if ollama_facts:
@@ -111,7 +133,7 @@ async def run_command(args: argparse.Namespace) -> None:
                 local_results.append({
                     "hotel": hotel.model_dump(mode="json"),
                     "score": ollama_score.model_dump(mode="json"),
-                    "meta": ollama_meta,
+                    "meta": {**ollama_meta, "normalized": True, "source_type": source_type},
                 })
                 print(f"  Ollama Score: {ollama_score.total_score_final:.2f}  ({ollama_meta['duration_ms']}ms, {ollama_meta['tokens_out']} tok out)")
             else:
@@ -120,17 +142,21 @@ async def run_command(args: argparse.Namespace) -> None:
         if args.mode in ["openai", "all"]:
             print(f"  Extracting with OpenAI for {hotel.name}...")
             openai_facts, openai_evidence, openai_confidence, openai_meta = await extract_facts_openai(
-                cleaned_text,
+                extract_text,
                 extraction_schema,
                 str(hotel.website),
                 force_extract=args.force_extract,
             )
 
+            # Normalize after extraction
+            if openai_facts:
+                openai_facts = normalize_extracted_facts(openai_facts)
+
             # Save raw output
             _save_raw_output(runs_dir, "openai", hotel.name, {
                 "hotel": hotel.model_dump(mode="json"),
                 "raw_facts": openai_facts.model_dump(mode="json") if openai_facts else None,
-                "meta": openai_meta,
+                "meta": {**openai_meta, "normalized": True, "source_type": source_type},
             })
 
             if openai_facts:
@@ -140,17 +166,19 @@ async def run_command(args: argparse.Namespace) -> None:
                 openai_results.append({
                     "hotel": hotel.model_dump(mode="json"),
                     "score": openai_score.model_dump(mode="json"),
-                    "meta": openai_meta,
+                    "meta": {**openai_meta, "normalized": True, "source_type": source_type},
                 })
                 print(f"  OpenAI Score: {openai_score.total_score_final:.2f}  ({openai_meta['duration_ms']}ms, ${openai_meta['cost_estimate_usd']:.6f})")
             else:
                 print(f"  OpenAI extraction unavailable for {hotel.name} (error: {openai_meta.get('error')})")
 
+    print(f"\n--- Scrape summary: {scrape_ok} OK, {scrape_fail} failed ---")
+
     if local_results:
         with open(local_jsonl_path, "w", encoding="utf-8") as handle:
             for entry in local_results:
                 handle.write(json.dumps(entry) + "\n")
-        print(f"\nLocal LLM results saved to {local_jsonl_path} ({len(local_results)} hotels)")
+        print(f"Local LLM results saved to {local_jsonl_path} ({len(local_results)} hotels)")
 
     if openai_results:
         with open(openai_jsonl_path, "w", encoding="utf-8") as handle:

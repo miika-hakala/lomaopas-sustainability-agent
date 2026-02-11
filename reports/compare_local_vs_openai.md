@@ -5,80 +5,78 @@ from a local LLM (Ollama) and OpenAI's LLM.
 
 ## Success Rates
 
-- **Local (Ollama) hotels extracted:** 13
-- **OpenAI hotels extracted:** 13
-- **Both have data (comparable):** 13
+- **Local (Ollama) hotels extracted:** 19
+- **OpenAI hotels extracted:** 20
+- **Both have data (comparable):** 19
 
 ## Timing & Cost
 
 ### Local (Ollama)
 
-- Mean duration: 10542 ms
-- Median duration: 9357 ms
-- Total duration: 137.0 s
-- Mean tokens out: 275
+- Mean duration: 10239 ms
+- Median duration: 9735 ms
+- Total duration: 194.5 s
+- Mean tokens out: 267
 - Cost: $0.00 (local)
 
 ### OpenAI (gpt-4o-mini)
 
-- Mean duration: 6498 ms
-- Median duration: 6693 ms
-- Total duration: 84.5 s
-- Mean tokens in: 1589
-- Mean tokens out: 276
-- Total cost estimate: $0.0052
-- Mean cost per hotel: $0.000404
+- Mean duration: 5925 ms
+- Median duration: 5734 ms
+- Total duration: 118.5 s
+- Mean tokens in: 1726
+- Mean tokens out: 296
+- Total cost estimate: $0.0087
+- Mean cost per hotel: $0.000437
 
 ## Overall Score Statistics
 
-- **Mean Total Score Difference:** 0.94
-- **Median Total Score Difference:** 0.00
+- **Mean Total Score Difference:** 1.23
+- **Median Total Score Difference:** 0.70
 - **Max Total Score Difference:** 5.59
-- **Mean Confidence Difference:** 0.62
+- **Mean Confidence Difference:** 0.56
 
 ### Missing Data
 
-- All hotels have data from both extractors.
+- **Hotels with no local LLM data:** Fuerte Marbella
 
 ### Fact Consistency Breakdown
 
 | Fact Path | Local Has | OpenAI Has | Both Have | Different Value |
 |---|---|---|---|---|
-| `certifications.eco_certifications` | 0 | 1 | 11 | 1 |
-| `certifications.other_sustainability_badges` | 0 | 1 | 11 | 1 |
-| `energy_efficiency.energy_reduction_targets` | 1 | 0 | 0 | 0 |
-| `energy_efficiency.led_lighting_used` | 4 | 0 | 0 | 0 |
-| `energy_efficiency.renewable_energy_sources` | 0 | 0 | 12 | 1 |
-| `energy_efficiency.solar_panels_used` | 6 | 0 | 1 | 0 |
-| `local_community_engagement.community_support_programs` | 1 | 1 | 0 | 0 |
-| `local_community_engagement.local_employment_initiatives` | 6 | 1 | 0 | 0 |
-| `local_community_engagement.local_sourcing_food` | 5 | 1 | 1 | 0 |
-| `waste_management.composting_program` | 6 | 0 | 0 | 0 |
-| `waste_management.food_waste_reduction` | 6 | 0 | 0 | 0 |
-| `waste_management.plastic_reduction_initiatives` | 0 | 0 | 13 | 0 |
-| `waste_management.recycling_program` | 6 | 0 | 0 | 0 |
-| `water_conservation.linen_reuse_program` | 5 | 0 | 0 | 0 |
-| `water_conservation.rainwater_harvesting` | 6 | 0 | 0 | 0 |
-| `water_conservation.water_reduction_targets` | 1 | 0 | 0 | 0 |
-| `water_conservation.water_saving_fixtures` | 5 | 0 | 0 | 0 |
+| `certifications.eco_certifications` | 1 | 1 | 0 | 0 |
+| `certifications.other_sustainability_badges` | 0 | 4 | 0 | 0 |
+| `eco_friendliness.is_eco_friendly` | 1 | 0 | 0 | 0 |
+| `energy_efficiency.led_lighting_used` | 1 | 0 | 0 | 0 |
+| `energy_efficiency.renewable_energy_sources` | 1 | 0 | 0 | 1 |
+| `energy_efficiency.solar_panels_used` | 1 | 0 | 1 | 0 |
+| `local_community_engagement.community_support_programs` | 0 | 1 | 0 | 0 |
+| `local_community_engagement.local_employment_initiatives` | 0 | 1 | 0 | 0 |
+| `local_community_engagement.local_sourcing_food` | 0 | 1 | 2 | 0 |
 
 ## Score Deltas (Local vs. OpenAI)
 
 | Hotel Name | Local Score | OpenAI Score | Delta |
 |---|---|---|---|
 | Hotel ILUNION Fuengirola | 0.00 | 5.59 | -5.59 |
-| Gran Hotel Miramar GL | 2.40 | 0.00 | +2.40 |
+| Hotel Torremar Torre del Mar | 5.44 | 0.00 | +5.44 |
+| Hotel Puente Romano | 0.00 | 2.50 | -2.50 |
+| Amàre Beach Hotel Marbella | 2.47 | 0.00 | +2.47 |
 | Málaga Hills Boutique & Wellness Eco-Hotel | 7.92 | 9.52 | -1.60 |
-| Marbella Club Hotel | 0.00 | 1.55 | -1.55 |
+| Hotel San Fermín Benalmádena | 0.00 | 1.55 | -1.55 |
+| Gran Hotel Miramar GL | 0.00 | 1.50 | -1.50 |
 | Fuengirola Beach Apartamentos Turísticos | 1.60 | 0.50 | +1.10 |
-| Amàre Beach Hotel Marbella | 0.00 | 0.00 | +0.00 |
+| Marbella Club Hotel | 2.47 | 1.55 | +0.93 |
+| MAC Puerto Marina Benalmádena | 0.00 | 0.70 | -0.70 |
 | Hard Rock Hotel Marbella | 0.00 | 0.00 | +0.00 |
 | Holiday World Resort Benalmádena | 0.00 | 0.00 | +0.00 |
 | Hotel Best Siroco Benalmádena | 0.00 | 0.00 | +0.00 |
+| Hotel La Barracuda Torremolinos | 0.00 | 0.00 | +0.00 |
 | Hotel Las Pirámides Resort Fuengirola | 0.00 | 0.00 | +0.00 |
-| Hotel Puente Romano | 0.00 | 0.00 | +0.00 |
+| Kempinski Hotel Bahía Estepona | 0.00 | 0.00 | +0.00 |
 | Nobu Hotel Marbella | 0.00 | 0.00 | +0.00 |
 | Sunset Beach Club Benalmádena | 0.00 | 0.00 | +0.00 |
+| Vincci Aleysa Boutique & Spa Benalmádena | 0.00 | 0.00 | +0.00 |
 
 ## Example Diffs (Top 3 Biggest Deltas)
 
@@ -86,34 +84,19 @@ from a local LLM (Ollama) and OpenAI's LLM.
 
 | Fact | Local | OpenAI |
 |---|---|---|
-| `energy_efficiency.solar_panels_used` | False | — |
 | `local_community_engagement.community_support_programs` | — | ILUNION Fuengirola is committed to diverse talent, offering real opportunities and an accessible environment that inspires growth and commitment. |
 | `local_community_engagement.local_employment_initiatives` | — | True |
-| `local_community_engagement.local_sourcing_food` | False | — |
-| `waste_management.composting_program` | False | — |
-| `waste_management.food_waste_reduction` | False | — |
-| `waste_management.recycling_program` | False | — |
 
-### Gran Hotel Miramar GL (delta: +2.40)
+### Hotel Torremar Torre del Mar (delta: +5.44)
 
 | Fact | Local | OpenAI |
 |---|---|---|
-| `energy_efficiency.solar_panels_used` | False | — |
-| `local_community_engagement.local_employment_initiatives` | False | — |
-| `water_conservation.rainwater_harvesting` | False | — |
+| `energy_efficiency.renewable_energy_sources` | ['solar'] | — |
+| `energy_efficiency.solar_panels_used` | True | — |
 
-### Málaga Hills Boutique & Wellness Eco-Hotel (delta: -1.60)
+### Hotel Puente Romano (delta: -2.50)
 
 | Fact | Local | OpenAI |
 |---|---|---|
-| `certifications.eco_certifications` | — | ['sustainability certificates'] |
-| `certifications.other_sustainability_badges` | — | [] |
-| `energy_efficiency.renewable_energy_sources` | ['solar'] | ['solar energy'] |
-| `local_community_engagement.local_employment_initiatives` | False | — |
-| `waste_management.composting_program` | False | — |
-| `waste_management.food_waste_reduction` | False | — |
-| `waste_management.recycling_program` | False | — |
-| `water_conservation.linen_reuse_program` | False | — |
-| `water_conservation.rainwater_harvesting` | False | — |
-| `water_conservation.water_saving_fixtures` | False | — |
+| `certifications.other_sustainability_badges` | — | ['1st Grand Serandipians Hotel Champion Gold', 'Wine Spectator Restaurant Award - Sea Grill', 'Best Lifestyle Hotel at the Beyond Luxury Awards', 'Hotel & Mantel Winner by Condé Nast Traveler - Chiringuito Puente Romano', "World Spa Award Europe's Best Resort Spa", "World Spa Award Spain's Best Resort Spa", 'Condé Nast Traveler Awards 2023 ‘Best Resort’', 'Wine Spectator Best of Award of Excellence'] |
 
