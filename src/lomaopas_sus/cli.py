@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -37,6 +38,69 @@ def _save_raw_output(runs_dir: Path, extractor: str, hotel_name: str, data: dict
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{safe_name}.json"
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+_SUSTAINABILITY_ANCHORS = re.compile(
+    r"sustainab|solar\b|recycle|recycling|eco[\-\s]?friend|green\senergy|"
+    r"\benergy\seffic|renewable|water[\s\-]?sav|waste\sreduc|compost\b|"
+    r"\borganic\b|environment|carbon\sfootprint|emission|linen\s?reuse|"
+    r"\bled[\s\-]?light|heat[\s\-]?pump|locally[\s\-]?sourc|local\sproduce|"
+    r"community\ssupport|bio[\s\-]?divers|rainwater|eco[\s\-]?cert|"
+    r"plastic[\s\-]?free|zero[\s\-]?waste|clean\senergy",
+    re.IGNORECASE,
+)
+
+_LOCAL_MAX_CHARS = 8_000
+_ANCHOR_CONTEXT = 300  # chars before and after each anchor match
+
+
+def _prepare_text_for_local(text: str) -> str:
+    """Prepare text for local (Ollama) extractor.
+
+    If text <= _LOCAL_MAX_CHARS, return as-is.
+    Otherwise, extract sustainability-relevant snippets around keyword anchors.
+    Falls back to simple truncation if no anchors found.
+    """
+    if len(text) <= _LOCAL_MAX_CHARS:
+        return text
+
+    # Always keep the page header for hotel context
+    header = text[:500]
+
+    # Find all anchor matches and collect surrounding context
+    seen_ranges: list[tuple[int, int]] = []
+    for match in _SUSTAINABILITY_ANCHORS.finditer(text):
+        start = max(0, match.start() - _ANCHOR_CONTEXT)
+        end = min(len(text), match.end() + _ANCHOR_CONTEXT)
+        seen_ranges.append((start, end))
+
+    if not seen_ranges:
+        # No sustainability keywords found — simple truncation
+        return text[:_LOCAL_MAX_CHARS]
+
+    # Merge overlapping ranges
+    seen_ranges.sort()
+    merged: list[tuple[int, int]] = [seen_ranges[0]]
+    for start, end in seen_ranges[1:]:
+        if start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+
+    # Build output: header + merged snippets, capped
+    parts = [header, "\n...\n"]
+    budget = _LOCAL_MAX_CHARS - len(header) - 10
+    for start, end in merged:
+        snippet = text[start:end]
+        if len(snippet) > budget:
+            snippet = snippet[:budget]
+        parts.append(snippet)
+        parts.append("\n...\n")
+        budget -= len(snippet) + 5
+        if budget <= 0:
+            break
+
+    return "".join(parts)
 
 
 async def run_command(args: argparse.Namespace) -> None:
@@ -96,15 +160,15 @@ async def run_command(args: argparse.Namespace) -> None:
         if source_type != "cache":
             print(f"  Scraped ({source_type}), {len(cleaned_text)} chars")
 
-        # Cap text length to avoid overwhelming extractors
-        max_extract_chars = 15_000
-        extract_text = cleaned_text[:max_extract_chars] if len(cleaned_text) > max_extract_chars else cleaned_text
+        # Prepare text: local extractor gets keyword-focused extract; OpenAI gets more
+        local_text = _prepare_text_for_local(cleaned_text)
+        openai_text = cleaned_text[:15_000] if len(cleaned_text) > 15_000 else cleaned_text
 
         if args.mode in ["local", "all"]:
-            print(f"  Extracting with Ollama for {hotel.name}...")
+            print(f"  Extracting with Ollama for {hotel.name}... ({len(local_text)} chars)")
             ollama_response, ollama_meta = ollama_extractor.extract(
                 hotel_name=hotel.name,
-                text=f"{extract_text}\n{hotel.website}",
+                text=f"{local_text}\n{hotel.website}",
                 schema_json=json.dumps(extraction_schema),
             )
             # Preprocess: Ollama sometimes returns [] instead of {} for sub-models
@@ -142,7 +206,7 @@ async def run_command(args: argparse.Namespace) -> None:
         if args.mode in ["openai", "all"]:
             print(f"  Extracting with OpenAI for {hotel.name}...")
             openai_facts, openai_evidence, openai_confidence, openai_meta = await extract_facts_openai(
-                extract_text,
+                openai_text,
                 extraction_schema,
                 str(hotel.website),
                 force_extract=args.force_extract,
