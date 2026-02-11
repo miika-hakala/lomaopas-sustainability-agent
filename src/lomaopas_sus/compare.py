@@ -5,8 +5,9 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from lomaopas_sus.models import SustainabilityScore
+from lomaopas_sus.models import SustainabilityScore, ExtractedFacts
 from lomaopas_sus.scoring import score_to_label, load_thresholds
+from lomaopas_sus.evidence_gate import apply_evidence_gate
 
 
 def load_jsonl_data(filepath: Path) -> List[Dict[str, Any]]:
@@ -204,7 +205,7 @@ def compare_scores_and_facts(
             f"| {counts['both_have']} | {counts['diff_value']} |\n"
         )
 
-    # --- Score Deltas with Labels ---
+    # --- Score Deltas with Labels + Evidence Gating ---
     try:
         thresholds = load_thresholds()
     except Exception:
@@ -223,8 +224,8 @@ def compare_scores_and_facts(
 
     if score_deltas:
         if thresholds:
-            report_lines.append("| Hotel Name | Local Score | Local Label | OpenAI Score | OpenAI Label | Delta |\n")
-            report_lines.append("|---|---|---|---|---|---|\n")
+            report_lines.append("| Hotel Name | Local Score | Local Label (v1) | Local Gated (v1.1) | OpenAI Score | OpenAI Label (v1) | OpenAI Gated (v1.1) | Delta |\n")
+            report_lines.append("|---|---|---|---|---|---|---|---|\n")
         else:
             report_lines.append("| Hotel Name | Local Score | OpenAI Score | Delta |\n")
             report_lines.append("|---|---|---|---|\n")
@@ -234,8 +235,10 @@ def compare_scores_and_facts(
             if thresholds:
                 ll = score_to_label(local_s, thresholds)
                 ol = score_to_label(openai_s, thresholds)
+                ll_gated, _ = apply_evidence_gate(local_s, ll, local_map[hotel_name].raw_facts, thresholds)
+                ol_gated, _ = apply_evidence_gate(openai_s, ol, openai_map[hotel_name].raw_facts, thresholds)
                 report_lines.append(
-                    f"| {hotel_name} | {local_s:.2f} | {ll} | {openai_s:.2f} | {ol} | {delta:+.2f} |\n"
+                    f"| {hotel_name} | {local_s:.2f} | {ll} | {ll_gated} | {openai_s:.2f} | {ol} | {ol_gated} | {delta:+.2f} |\n"
                 )
             else:
                 report_lines.append(
@@ -244,22 +247,39 @@ def compare_scores_and_facts(
     else:
         report_lines.append("No hotels with comparable scores to calculate deltas.\n")
 
-    # --- Label Agreement ---
+    # --- Label Agreement (with evidence gating) ---
     if thresholds:
         report_lines.append("\n## Label Agreement\n\n")
-        agree = 0
+        agree_v1 = 0
+        agree_gated = 0
         total_cmp = 0
+        gated_changes: List[str] = []
         for hotel_name in comparable:
             ls = local_map[hotel_name].total_score_final
             os_ = openai_map[hotel_name].total_score_final
             ll = score_to_label(ls, thresholds)
             ol = score_to_label(os_, thresholds)
+            ll_g, l_meta = apply_evidence_gate(ls, ll, local_map[hotel_name].raw_facts, thresholds)
+            ol_g, o_meta = apply_evidence_gate(os_, ol, openai_map[hotel_name].raw_facts, thresholds)
             total_cmp += 1
             if ll == ol:
-                agree += 1
-        pct = (agree / total_cmp * 100) if total_cmp > 0 else 0
-        report_lines.append(f"- **Agreement:** {agree}/{total_cmp} = **{pct:.0f}%**\n")
-        report_lines.append(f"- Thresholds: `configs/thresholds.v1.json`\n\n")
+                agree_v1 += 1
+            if ll_g == ol_g:
+                agree_gated += 1
+            if l_meta["evidence_gate_applied"] or o_meta["evidence_gate_applied"]:
+                gated_changes.append(
+                    f"  - {hotel_name}: local {ll} -> {ll_g} (claims={l_meta['claim_count']}), "
+                    f"openai {ol} -> {ol_g} (claims={o_meta['claim_count']})"
+                )
+        pct_v1 = (agree_v1 / total_cmp * 100) if total_cmp > 0 else 0
+        pct_gated = (agree_gated / total_cmp * 100) if total_cmp > 0 else 0
+        report_lines.append(f"- **v1 Agreement (score-only):** {agree_v1}/{total_cmp} = **{pct_v1:.0f}%**\n")
+        report_lines.append(f"- **v1.1 Agreement (with evidence gating):** {agree_gated}/{total_cmp} = **{pct_gated:.0f}%**\n")
+        report_lines.append(f"- Thresholds: `configs/thresholds.v1.json` + evidence gate v1.1\n\n")
+        if gated_changes:
+            report_lines.append("### Evidence Gate Changes\n\n")
+            for change in gated_changes:
+                report_lines.append(f"{change}\n")
 
     # --- Example Diffs (top 3 biggest deltas) ---
     report_lines.append("\n## Example Diffs (Top 3 Biggest Deltas)\n\n")

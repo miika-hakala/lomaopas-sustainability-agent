@@ -55,34 +55,38 @@ from a local LLM (Ollama) and OpenAI's LLM.
 
 ## Score Deltas (Local vs. OpenAI)
 
-| Hotel Name | Local Score | Local Label | OpenAI Score | OpenAI Label | Delta |
-|---|---|---|---|---|---|
-| MAC Puerto Marina Benalmádena | 19.42 | Excellent | 0.50 | Basic | +18.92 |
-| Hotel ILUNION Fuengirola | 2.47 | Basic | 5.59 | Good | -3.12 |
-| Hotel Puente Romano | 0.00 | Insufficient Evidence | 2.50 | Basic | -2.50 |
-| Málaga Hills Boutique & Wellness Eco-Hotel | 7.92 | Good | 9.52 | Good | -1.60 |
-| Hotel San Fermín Benalmádena | 0.00 | Insufficient Evidence | 1.55 | Basic | -1.55 |
-| Marbella Club Hotel | 2.47 | Basic | 1.55 | Basic | +0.93 |
-| Gran Hotel Miramar GL | 2.40 | Basic | 1.50 | Basic | +0.90 |
-| Fuengirola Beach Apartamentos Turísticos | 0.00 | Insufficient Evidence | 0.50 | Basic | -0.50 |
-| Fuerte Marbella | 2.47 | Basic | 2.16 | Basic | +0.31 |
-| Amàre Beach Hotel Marbella | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Hard Rock Hotel Marbella | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Holiday World Resort Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Hotel Best Siroco Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Hotel La Barracuda Torremolinos | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Hotel Las Pirámides Resort Fuengirola | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Hotel Torremar Torre del Mar | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Kempinski Hotel Bahía Estepona | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Nobu Hotel Marbella | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Sunset Beach Club Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
-| Vincci Aleysa Boutique & Spa Benalmádena | 0.00 | Insufficient Evidence | 0.00 | Insufficient Evidence | +0.00 |
+| Hotel Name | Local Score | Local Label (v1) | Local Gated (v1.1) | OpenAI Score | OpenAI Label (v1) | OpenAI Gated (v1.1) | Delta |
+|---|---|---|---|---|---|---|---|
+| MAC Puerto Marina Benalmádena | 19.42 | Excellent | Good | 0.50 | Basic | Basic | +18.92 |
+| Hotel ILUNION Fuengirola | 2.47 | Basic | Basic | 5.59 | Good | Good | -3.12 |
+| Hotel Puente Romano | 0.00 | Insufficient Evidence | Insufficient Evidence | 2.50 | Basic | Basic | -2.50 |
+| Málaga Hills Boutique & Wellness Eco-Hotel | 7.92 | Good | Good | 9.52 | Good | Good | -1.60 |
+| Hotel San Fermín Benalmádena | 0.00 | Insufficient Evidence | Insufficient Evidence | 1.55 | Basic | Basic | -1.55 |
+| Marbella Club Hotel | 2.47 | Basic | Basic | 1.55 | Basic | Basic | +0.93 |
+| Gran Hotel Miramar GL | 2.40 | Basic | Basic | 1.50 | Basic | Basic | +0.90 |
+| Fuengirola Beach Apartamentos Turísticos | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.50 | Basic | Basic | -0.50 |
+| Fuerte Marbella | 2.47 | Basic | Basic | 2.16 | Basic | Basic | +0.31 |
+| Amàre Beach Hotel Marbella | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Hard Rock Hotel Marbella | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Holiday World Resort Benalmádena | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Hotel Best Siroco Benalmádena | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Hotel La Barracuda Torremolinos | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Hotel Las Pirámides Resort Fuengirola | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Hotel Torremar Torre del Mar | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Kempinski Hotel Bahía Estepona | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Nobu Hotel Marbella | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Sunset Beach Club Benalmádena | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
+| Vincci Aleysa Boutique & Spa Benalmádena | 0.00 | Insufficient Evidence | Insufficient Evidence | 0.00 | Insufficient Evidence | Insufficient Evidence | +0.00 |
 
 ## Label Agreement
 
-- **Agreement:** 15/20 = **75%**
-- Thresholds: `configs/thresholds.v1.json`
+- **v1 Agreement (score-only):** 15/20 = **75%**
+- **v1.1 Agreement (with evidence gating):** 15/20 = **75%**
+- Thresholds: `configs/thresholds.v1.json` + evidence gate v1.1
 
+### Evidence Gate Changes
+
+  - MAC Puerto Marina Benalmádena: local Excellent -> Good (claims=2), openai Basic -> Basic (claims=1)
 
 ## Example Diffs (Top 3 Biggest Deltas)
 

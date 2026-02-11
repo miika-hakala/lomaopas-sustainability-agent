@@ -90,13 +90,63 @@ The 0.5 lower bound for Basic (vs 0) separates genuine zero-evidence hotels from
 - OpenAI: **Basic** (score 2.50)
 - **Why:** OpenAI found sustainability signals (certifications, community engagement) that Ollama missed. OpenAI's higher extraction quality detected more nuanced facts.
 
+## v1.1 Evidence Gating Impact Analysis
+
+Evidence gating (v1.1) adds a deterministic post-threshold layer that caps labels when extracted facts lack sufficient claims or concrete evidence. No LLM calls — pure field counting.
+
+### Rules
+
+| Rule | Condition | Effect |
+|------|-----------|--------|
+| A | Excellent requires ≥ 3 distinct claims AND (≥ 1 certification OR ≥ 1 concrete action) | Cap to Good if unmet |
+| B | Excellent gate fails | Cap to Good |
+| C | claim_count < 2 | Cap to max Basic |
+
+### Before/After Label Changes
+
+| Hotel | Score | v1 Label | v1.1 Gated Label | Claims | Cert | Action | Change |
+|-------|-------|----------|-------------------|--------|------|--------|--------|
+| MAC Puerto Marina Benalmádena (local) | 19.42 | Excellent | **Good** | 2 | No | Yes | **GATED** |
+| Málaga Hills Eco-Hotel (local) | 7.92 | Good | Good | 3 | No | Yes | unchanged |
+| Málaga Hills Eco-Hotel (openai) | 9.52 | Good | Good | 4 | Yes | Yes | unchanged |
+| Hotel ILUNION Fuengirola (openai) | 5.59 | Good | Good | 2 | No | No | unchanged |
+
+**Total labels changed by gating: 1** (MAC Puerto Marina local: Excellent → Good)
+
+### Hallucination Case Fix
+
+**MAC Puerto Marina Benalmádena:**
+- Ollama hallucinated sustainability claims not present on the page, generating score 19.42 (Excellent)
+- OpenAI correctly extracted minimal facts, score 0.50 (Basic)
+- Evidence gate detects: only 2 claims (energy_reduction_targets + community_support_programs), no certification
+- **Result: Excellent → Good** — still overestimated but no longer the highest label
+
+### Label Agreement Impact
+
+| Metric | v1 (score-only) | v1.1 (with evidence gating) |
+|--------|-----------------|----------------------------|
+| Agreement | 15/20 = 75% | 15/20 = 75% |
+| Disagreements | 5 | 5 |
+
+Agreement unchanged — MAC Puerto Marina remains a disagreement (Good vs Basic instead of Excellent vs Basic), but the severity is reduced by 2 label levels.
+
+### v1.1 Label Distribution
+
+| Label | Local (v1) | Local (v1.1) | OpenAI (v1) | OpenAI (v1.1) |
+|-------|-----------|-------------|------------|--------------|
+| Insufficient Evidence | 14 | 14 | 11 | 11 |
+| Basic | 4 | 4 | 7 | 7 |
+| Good | 1 | **2** | 2 | 2 |
+| Excellent | 1 | **0** | 0 | 0 |
+
 ## Risks & Next Steps
 
 ### Risks
 
 - **High Unknown rate** (55-70%): Most Costa del Sol hotels don't publish sustainability info on their homepages. This is a real finding, not a threshold issue. Multi-page scraping (subpages like /sustainability) would help.
-- **Ollama hallucination** (MAC Puerto Marina): Local model occasionally invents facts, pushing scores into Excellent. Thresholds can't fix extractor quality — v2 should add hallucination detection.
-- **Small calibration set** (n=20): Thresholds may need adjustment with larger hotel datasets.
+- **Ollama hallucination partially mitigated**: Evidence gate caps MAC Puerto Marina from Excellent to Good, but score (19.42) remains inflated. Full mitigation requires cross-extractor consensus or hallucination detection.
+- **Small calibration set** (n=20): Thresholds and gate rules may need adjustment with larger hotel datasets.
+- **Gate claim threshold (≥3 for Excellent)**: Chosen based on current dataset; may be too strict or lenient for other regions.
 
 ### v2 Ideas
 
