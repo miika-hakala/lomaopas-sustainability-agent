@@ -49,3 +49,8 @@
 - **Status:** DONE
 - **Description:** `score_to_label()` function in `scoring.py`, compare report now shows labels and agreement.
   - Label agreement: 15/20 = 75%
+
+## NEXT: MVP2 DB schema
+
+- **Status:** PENDING
+- **Description:** Implement the database schema for MVP2, including entities, ingest jobs, facts snapshots, current, proposed, and review actions. This will lay the groundwork for persistent storage and a review workflow for sustainability facts.
