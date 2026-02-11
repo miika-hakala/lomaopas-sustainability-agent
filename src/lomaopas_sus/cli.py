@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from datetime import date
 from pathlib import Path
 
 from lomaopas_sus.models import Hotel, ExtractedFacts
@@ -26,6 +27,15 @@ SAMPLE_FACTS_PATH = CONFIGS_DIR / "sample_facts.json"
 
 DATASET_DIR.mkdir(parents=True, exist_ok=True)
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _save_raw_output(runs_dir: Path, extractor: str, hotel_name: str, data: dict) -> None:
+    """Save per-hotel raw extraction output to runs/{date}/{extractor}/."""
+    safe_name = hotel_name.replace("/", "_").replace(" ", "_")[:60]
+    out_dir = runs_dir / extractor
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{safe_name}.json"
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 async def run_command(args: argparse.Namespace) -> None:
@@ -54,6 +64,9 @@ async def run_command(args: argparse.Namespace) -> None:
     local_jsonl_path = DATASET_DIR / "costa_del_sol_20_local.jsonl"
     openai_jsonl_path = DATASET_DIR / "costa_del_sol_20_openai.jsonl"
 
+    # Per-run raw output directory
+    runs_dir = _repo_root() / "runs" / date.today().isoformat()
+
     local_results = []
     openai_results = []
 
@@ -61,72 +74,91 @@ async def run_command(args: argparse.Namespace) -> None:
         if args.limit and i >= args.limit:
             break
 
-        print(f"Processing hotel: {hotel.name} ({hotel.website})")
+        print(f"\n[{i+1}/{args.limit or len(hotels)}] Processing hotel: {hotel.name} ({hotel.website})")
 
         cleaned_text = await scrape_and_cache(str(hotel.website), force_scrape=args.force_scrape)
         if not cleaned_text:
-            print(f"Skipping {hotel.name} due to scraping failure.")
+            print(f"  SKIP: scraping failure for {hotel.name}")
             continue
 
         if args.mode in ["local", "all"]:
             print(f"  Extracting with Ollama for {hotel.name}...")
-            ollama_response = ollama_extractor.extract(
+            ollama_response, ollama_meta = ollama_extractor.extract(
                 hotel_name=hotel.name,
                 text=f"{cleaned_text}\n{hotel.website}",
                 schema_json=json.dumps(extraction_schema),
             )
-            # Preprocess ollama_response to handle cases where Ollama returns empty lists instead of empty dicts
-            # for sub-models that expect dicts.
+            # Preprocess: Ollama sometimes returns [] instead of {} for sub-models
             if ollama_response and isinstance(ollama_response, dict):
                 for key in ["energy_efficiency", "water_conservation", "waste_management", "local_community_engagement", "certifications"]:
                     if key in ollama_response and ollama_response[key] == []:
                         ollama_response[key] = {}
-            
+
             ollama_facts = ExtractedFacts.model_validate(ollama_response) if ollama_response else None
-            ollama_evidence = {} # Ollama extractor does not provide evidence
-            ollama_confidence = 0.8 # Default confidence for Ollama
+            ollama_confidence = 0.8
+
+            # Save raw output
+            _save_raw_output(runs_dir, "local", hotel.name, {
+                "hotel": hotel.model_dump(mode="json"),
+                "raw_response": ollama_response,
+                "meta": ollama_meta,
+            })
 
             if ollama_facts:
                 ollama_score = calculate_sustainability_score(
                     ollama_facts, ollama_confidence, scoring_rules
                 )
-                local_results.append(
-                    {"hotel": hotel.model_dump(mode="json"), "score": ollama_score.model_dump(mode="json")}
-                )
-                print(f"  Ollama Score: {ollama_score.total_score_final:.2f}")
+                local_results.append({
+                    "hotel": hotel.model_dump(mode="json"),
+                    "score": ollama_score.model_dump(mode="json"),
+                    "meta": ollama_meta,
+                })
+                print(f"  Ollama Score: {ollama_score.total_score_final:.2f}  ({ollama_meta['duration_ms']}ms, {ollama_meta['tokens_out']} tok out)")
             else:
-                print(f"  Ollama extraction unavailable for {hotel.name}")
+                print(f"  Ollama extraction unavailable for {hotel.name} (error: {ollama_meta.get('error')})")
 
         if args.mode in ["openai", "all"]:
             print(f"  Extracting with OpenAI for {hotel.name}...")
-            openai_facts, openai_evidence, openai_confidence = await extract_facts_openai(
+            openai_facts, openai_evidence, openai_confidence, openai_meta = await extract_facts_openai(
                 cleaned_text,
                 extraction_schema,
                 str(hotel.website),
                 force_extract=args.force_extract,
             )
+
+            # Save raw output
+            _save_raw_output(runs_dir, "openai", hotel.name, {
+                "hotel": hotel.model_dump(mode="json"),
+                "raw_facts": openai_facts.model_dump(mode="json") if openai_facts else None,
+                "meta": openai_meta,
+            })
+
             if openai_facts:
                 openai_score = calculate_sustainability_score(
                     openai_facts, openai_confidence, scoring_rules
                 )
-                openai_results.append(
-                    {"hotel": hotel.model_dump(mode="json"), "score": openai_score.model_dump(mode="json")}
-                )
-                print(f"  OpenAI Score: {openai_score.total_score_final:.2f}")
+                openai_results.append({
+                    "hotel": hotel.model_dump(mode="json"),
+                    "score": openai_score.model_dump(mode="json"),
+                    "meta": openai_meta,
+                })
+                print(f"  OpenAI Score: {openai_score.total_score_final:.2f}  ({openai_meta['duration_ms']}ms, ${openai_meta['cost_estimate_usd']:.6f})")
             else:
-                print(f"  OpenAI extraction unavailable for {hotel.name}")
+                print(f"  OpenAI extraction unavailable for {hotel.name} (error: {openai_meta.get('error')})")
 
     if local_results:
         with open(local_jsonl_path, "w", encoding="utf-8") as handle:
             for entry in local_results:
                 handle.write(json.dumps(entry) + "\n")
-        print(f"Local LLM results saved to {local_jsonl_path}")
+        print(f"\nLocal LLM results saved to {local_jsonl_path} ({len(local_results)} hotels)")
 
     if openai_results:
         with open(openai_jsonl_path, "w", encoding="utf-8") as handle:
             for entry in openai_results:
                 handle.write(json.dumps(entry) + "\n")
-        print(f"OpenAI LLM results saved to {openai_jsonl_path}")
+        print(f"OpenAI LLM results saved to {openai_jsonl_path} ({len(openai_results)} hotels)")
+
+    print(f"Raw outputs saved to {runs_dir}/")
 
 
 def compare_command(_: argparse.Namespace) -> None:
