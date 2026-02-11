@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 from lomaopas_sus.models import ExtractedFacts, EvidenceSnippet
 
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST") or "http://127.0.0.1:11434"
 
 
 async def extract_facts_ollama(
