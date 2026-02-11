@@ -11,8 +11,8 @@
 ### SE-P3B: Execute dual-run (20 hotels)
 
 - **Status:** DONE
-- **Description:** Full pipeline executed for 19 Costa del Sol hotels (1 removed from config) in both modes.
-  - 13/19 hotels successfully scraped and extracted (6 blocked by 403/404/DNS)
+- **Description:** Full pipeline executed for 20 Costa del Sol hotels in both modes.
+  - 20/20 hotels successfully scraped and extracted
   - Output: `dataset/v1/costa_del_sol_20_local.jsonl` and `dataset/v1/costa_del_sol_20_openai.jsonl`
   - Raw per-hotel outputs: `runs/2026-02-11/local/` and `runs/2026-02-11/openai/`
 
@@ -20,6 +20,32 @@
 
 - **Status:** DONE
 - **Description:** Comparison report generated at `reports/compare_local_vs_openai.md`
-  - Includes: success rates, timing/cost, score deltas, fact consistency, example diffs
-  - Mean score difference: 0.94
-  - OpenAI total cost: $0.0052 for 13 hotels
+  - Includes: success rates, timing/cost, score deltas, fact consistency, example diffs, label agreement
+  - Mean score difference: 1.52
+  - OpenAI total cost: $0.0087 for 20 hotels
+
+## SE-P4: Scraping Reliability + Normalization
+
+- **Status:** DONE
+- **Description:** Retry policy (3 attempts, rotating UA, exponential backoff), canonical normalization (false->null, []-null), fallback URLs, long-page handling for local extractor.
+  - 20/20 scrapes, 20/20 local, 20/20 OpenAI extractions
+
+## SE-P5: Threshold Calibration v1
+
+### SE-P5A: Define labeling scale
+
+- **Status:** DONE
+- **Description:** 4-level scale: Insufficient Evidence / Basic / Good / Excellent
+  - Config: `configs/thresholds.v1.json`
+
+### SE-P5B: Calibration analysis
+
+- **Status:** DONE
+- **Description:** Calibration script (`scripts/calibrate_thresholds.py`) analyzes score distributions, agreement matrix, drift between extractors.
+  - Report: `reports/threshold_calibration_v1.md`
+
+### SE-P5C: Integrate threshold mapping into pipeline
+
+- **Status:** DONE
+- **Description:** `score_to_label()` function in `scoring.py`, compare report now shows labels and agreement.
+  - Label agreement: 15/20 = 75%
