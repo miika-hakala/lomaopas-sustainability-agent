@@ -74,6 +74,9 @@ def calculate_sustainability_score(
     for fact_category_name, fact_category_data in facts_dict.items():
         if fact_category_name == "evidence_snippets" or fact_category_data is None:
             continue
+        
+        if not isinstance(fact_category_data, dict):
+            continue
 
         for fact_name, fact_value in fact_category_data.items():
             config_key = _resolve_config_key(

@@ -8,9 +8,11 @@ from pathlib import Path
 from lomaopas_sus.models import Hotel, ExtractedFacts
 from lomaopas_sus.scrape import scrape_and_cache
 from lomaopas_sus.extract_openai import extract_facts_openai
-from lomaopas_sus.extract_ollama import extract_facts_ollama
+from lomaopas_sus.extract_ollama import OllamaExtractor
 from lomaopas_sus.scoring import load_scoring_rules, calculate_sustainability_score
 from lomaopas_sus.compare import load_jsonl_data, compare_scores_and_facts
+
+ollama_extractor = OllamaExtractor()
 
 
 def _repo_root() -> Path:
@@ -68,18 +70,21 @@ async def run_command(args: argparse.Namespace) -> None:
 
         if args.mode in ["local", "all"]:
             print(f"  Extracting with Ollama for {hotel.name}...")
-            ollama_facts, ollama_evidence, ollama_confidence = await extract_facts_ollama(
-                cleaned_text,
-                extraction_schema,
-                str(hotel.website),
-                force_extract=args.force_extract,
+            ollama_response = ollama_extractor.extract(
+                hotel_name=hotel.name,
+                text=f"{cleaned_text}\n{hotel.website}",
+                schema_json=json.dumps(extraction_schema),
             )
+            ollama_facts = ExtractedFacts.model_validate(ollama_response) if ollama_response else None
+            ollama_evidence = {} # Ollama extractor does not provide evidence
+            ollama_confidence = 0.8 # Default confidence for Ollama
+
             if ollama_facts:
                 ollama_score = calculate_sustainability_score(
                     ollama_facts, ollama_confidence, scoring_rules
                 )
                 local_results.append(
-                    {"hotel": hotel.model_dump(), "score": ollama_score.model_dump()}
+                    {"hotel": hotel.model_dump(mode="json"), "score": ollama_score.model_dump()}
                 )
                 print(f"  Ollama Score: {ollama_score.total_score_final:.2f}")
             else:
@@ -98,7 +103,7 @@ async def run_command(args: argparse.Namespace) -> None:
                     openai_facts, openai_confidence, scoring_rules
                 )
                 openai_results.append(
-                    {"hotel": hotel.model_dump(), "score": openai_score.model_dump()}
+                    {"hotel": hotel.model_dump(mode="json"), "score": openai_score.model_dump()}
                 )
                 print(f"  OpenAI Score: {openai_score.total_score_final:.2f}")
             else:

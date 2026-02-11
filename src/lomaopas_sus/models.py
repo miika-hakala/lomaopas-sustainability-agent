@@ -55,7 +55,7 @@ class EvidenceSnippet(BaseModel):
 
 
 class ExtractedFacts(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     energy_efficiency: EnergyEfficiencyFacts = Field(default_factory=EnergyEfficiencyFacts)
     water_conservation: WaterConservationFacts = Field(default_factory=WaterConservationFacts)
