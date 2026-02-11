@@ -1,5 +1,36 @@
 # Paatosloki (Decision Log)
 
+## 2026-02-11: SE-P3 v1 suljettu, SE-P3.1 Evidence Gating paatetty
+
+### Konteksti
+
+- SE-P1 -- SE-P5 kaikki DONE
+- Dual-run 20/20 molemmat extractorit, label agreement 75%
+- Hallusinointiongelma: MAC Puerto Marina (Ollama 19.42 / Excellent vs OpenAI 0.50 / Basic)
+- Pelkka score-threshold ei riita laadunvarmistukseen
+
+### Paatos: SE-P3.1 Evidence Gating
+
+- **Minimiclaim-maara:** Label >= Basic vaatii >= 3 erillistä sustainability-vaittamaa (non-null fact -kenttaa)
+- **Konkreettinen evidenssi:** Label >= Good vaatii >= 1 konkreettinen toimenpide TAI sertifikaatti
+- **Label cap:** Jos evidence gate ei lapaistya, label rajoitetaan korkeimpaan lapaistyvaan tasoon
+- **Deterministic:** Ei LLM:aa — pelkka kenttien laskenta ExtractedFacts-mallista
+- **Versio:** thresholds v1.1 (laajentaa `configs/thresholds.v1.json`)
+
+### Perustelut
+
+- MAC Puerto Marina -tapaus osoittaa, etta Ollama voi hallusinoida laajan sustainability-ohjelman olemattomasta datasta
+- Score 19.42 (Excellent) ilman todellista evidenssia on kayttajalle harhaanjohtava
+- Evidence gate on kevyt, deterministinen ja ei vaadi uutta LLM-kutsua
+- Saillyttaa thresholdit v1 ennallaan, lisaa vain ylimaaraisen portin
+
+### Riskit
+
+- Gate voi olla liian tiukka joillekin oikeasti hyville hotelleille, joiden sivuilta extractoidaan vain 1-2 faktaa
+- Claim count -kynnys (3) valittu intuitiivisesti, vaatii validoinnin suuremmalla datasetilla
+
+---
+
 ## 2026-02-11: SE-P5 Threshold Calibration v1
 
 ### Konteksti

@@ -55,6 +55,18 @@
 | Compare report shows labels | SATISFIED |
 | Gate | **SATISFIED** |
 
+## Stabilization
+
+### SE-P3.1: Evidence Gating [NEXT]
+
+- Deterministic evidence gate: minimum claim count + concrete evidence requirement
+- >= 3 distinct claims for Basic, >= 1 concrete action/certification for Good
+- Label cap: even if score exceeds threshold, label capped if gate fails
+- Re-calibrate on 20-hotel dataset, target agreement >= 75%
+- Thresholds version: v1.1
+
+**Gate:** Label agreement >= 75% with evidence gating active; MAC Puerto Marina hallucination case correctly capped.
+
 ## Future / SE-P6
 
 - Calibrate on 100+ hotels across multiple regions

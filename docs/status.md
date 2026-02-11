@@ -9,6 +9,7 @@ Last updated: 2026-02-11
 | SE-P1 | Scoring engine (deterministic rules) | DONE |
 | SE-P2 | Local Ollama run (scrape + extract + score) | DONE |
 | SE-P3 | OpenAI extractor + dual-run compare | DONE |
+| SE-P3.1 | Evidence gating (prevent inflated labels) | **NEXT** |
 | SE-P4 | Scraping reliability + normalization + 20/20 | DONE |
 | SE-P5 | Threshold calibration v1 | DONE |
 
@@ -57,3 +58,16 @@ Last updated: 2026-02-11
 - Label agreement: 75% — meets >=70% target
 - Most disagreements: Ollama misses facts (3 cases) or hallucinates (1 case)
 - 55-70% of hotels labeled "Insufficient Evidence" — reflects reality (hotels don't publish sustainability on homepage)
+
+### Known Risk: Hallucination-Inflated Labels
+
+- MAC Puerto Marina: Ollama score 19.42 (Excellent) vs OpenAI 0.50 (Basic)
+- Root cause: Ollama hallucinated sustainability claims not present on page
+- Mitigation: SE-P3.1 Evidence Gating will cap labels when claim count is too low
+
+## SE-P3.1: Evidence Gating [NEXT]
+
+- Deterministic evidence gate to prevent inflated labels from hallucinated extractions
+- Requires >= 3 distinct claims for Basic, >= 1 concrete action/certification for Good
+- Label cap mechanism: score may exceed threshold but label is capped if gate fails
+- Target: thresholds v1.1

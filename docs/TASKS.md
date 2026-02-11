@@ -1,6 +1,6 @@
 # Sustainability Engine - Active Tasks
 
-## SE-P3: OpenAI Extractor + Dual-Run Compare
+## SE-P3: OpenAI Extractor + Dual-Run Compare [DONE]
 
 ### SE-P3A: Implement OpenAI extractor
 
@@ -23,6 +23,30 @@
   - Includes: success rates, timing/cost, score deltas, fact consistency, example diffs, label agreement
   - Mean score difference: 1.52
   - OpenAI total cost: $0.0087 for 20 hotels
+
+---
+
+## SE-P3.1: Evidence Gating [NEXT]
+
+- **Status:** NEXT
+- **Goal:** Prevent inflated labels when extraction quality is low (hallucinations, single vague claim)
+- **Trigger:** MAC Puerto Marina hallucination (local 19.42 vs OpenAI 0.50) showed that score alone is insufficient
+
+### Requirements
+
+1. **Minimum claim count:** Label >= Basic requires >= 3 distinct sustainability claims (non-null fact fields)
+2. **Concrete evidence:** Label >= Good requires >= 1 concrete action OR certification (e.g., solar panels, eco-cert, measurable target)
+3. **Label cap:** If evidence gate fails, cap label at the highest level whose gate passes (even if score exceeds threshold)
+4. **Deterministic rule:** No LLM involved — pure field counting on ExtractedFacts
+5. **Threshold version:** v1.1 (extends `configs/thresholds.v1.json`)
+
+### Deliverables
+
+- [ ] `evidence_gate()` function in `scoring.py`
+- [ ] Updated `score_to_label()` incorporating evidence gate
+- [ ] Unit tests for gate logic
+- [ ] Re-run calibration to measure label agreement impact
+- [ ] Updated `configs/thresholds.v1.1.json`
 
 ## SE-P4: Scraping Reliability + Normalization
 
