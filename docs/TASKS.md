@@ -49,3 +49,13 @@
 - **Status:** DONE
 - **Description:** `score_to_label()` function in `scoring.py`, compare report now shows labels and agreement.
   - Label agreement: 15/20 = 75%
+
+## NEXT: MVP2 DB schema
+
+- **Status:** DONE
+- **Description:** Implemented the database schema for MVP2, including entities, ingest jobs, facts snapshots, current, proposed, and review actions. This laid the groundwork for persistent storage and a review workflow for sustainability facts.
+
+## NEXT: MVP2 Worker
+
+- **Status:** DONE
+- **Description:** Implemented the Supabase worker, which consumes ingest_jobs, produces facts_snapshots, calculates diffs, auto-accepts small diffs, proposes large diffs for review, and includes a scheduler for refresh jobs.

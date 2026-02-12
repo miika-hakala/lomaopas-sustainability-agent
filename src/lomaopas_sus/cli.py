@@ -4,16 +4,20 @@ import argparse
 import asyncio
 import json
 import re
-from datetime import date
+from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
+from uuid import UUID
+import os
 
-from lomaopas_sus.models import Hotel, ExtractedFacts
+from lomaopas_sus.models import Hotel, ExtractedFacts, SustainabilityScore, ScoreBreakdown
 from lomaopas_sus.scrape import scrape_and_cache
 from lomaopas_sus.extract_openai import extract_facts_openai
 from lomaopas_sus.extract_ollama import OllamaExtractor
 from lomaopas_sus.normalize import normalize_facts_dict, normalize_extracted_facts
 from lomaopas_sus.scoring import load_scoring_rules, calculate_sustainability_score
 from lomaopas_sus.compare import load_jsonl_data, compare_scores_and_facts
+from lomaopas_sus.supabase_client import SupabaseClient
+from lomaopas_sus.diff import compute_facts_diff, should_auto_accept_diff
 
 ollama_extractor = OllamaExtractor()
 
@@ -195,7 +199,7 @@ async def run_command(args: argparse.Namespace) -> None:
 
         if args.mode in ["local", "all"]:
             print(f"  Extracting with Ollama for {hotel.name}... ({len(local_text)} chars)")
-            ollama_response, ollama_meta = ollama_extractor.extract(
+            ollama_response, ollama_meta = await ollama_extractor.extract(
                 hotel_name=hotel.name,
                 text=f"{local_text}\n{hotel.website}",
                 schema_json=json.dumps(extraction_schema),
@@ -308,10 +312,272 @@ def compare_command(args: argparse.Namespace) -> None:
     print(f"Comparison report generated at {report_path}")
 
 
+async def worker_run_command(args: argparse.Namespace) -> None:
+    supabase_client = SupabaseClient()
+    print(f"Worker {supabase_client.worker_id} started. Dry-run: {args.dry_run}")
+
+    extraction_schema_path = CONFIGS_DIR / "extract_schema.json"
+    scoring_rules_path = CONFIGS_DIR / "scoring_rules.yaml"
+
+    if not extraction_schema_path.exists():
+        print(f"Error: Extraction schema file not found at {extraction_schema_path}")
+        return
+    if not scoring_rules_path.exists():
+        print(f"Error: Scoring rules file not found at {scoring_rules_path}")
+        return
+
+    extraction_schema = json.loads(extraction_schema_path.read_text(encoding="utf-8"))
+    scoring_rules = load_scoring_rules(scoring_rules_path)
+
+    try:
+        while True:
+            job = await supabase_client.fetch_next_job()
+            if not job:
+                if args.once:
+                    print("No queued jobs found. Exiting (once mode).")
+                    break
+                print("No queued jobs found. Waiting...")
+                await asyncio.sleep(10) # Wait before checking for new jobs
+                continue
+
+            job_id = UUID(job["id"])
+            entity_id = UUID(job["entity_id"])
+            reason = job["reason"]
+
+            print(f"\nProcessing job {job_id} for entity {entity_id} (Reason: {reason})")
+            
+            # Lock job
+            locked_job = await supabase_client.lock_job(job_id)
+            if not locked_job:
+                print(f"Failed to lock job {job_id}. Skipping.")
+                continue
+            print(f"Job {job_id} locked by {supabase_client.worker_id}.")
+
+            entity = None
+            try:
+                entity = await supabase_client.get_entity(entity_id)
+                if not entity:
+                    raise ValueError(f"Entity {entity_id} not found.")
+                
+                entity_name = entity.get("name", "Unknown")
+                entity_website_url = None
+                entity_sources = await supabase_client.get_entity_sources(entity_id)
+                
+                primary_source = next((s for s in entity_sources if s["source_type"] == "primary" and s["allowed"]), None)
+                if primary_source:
+                    entity_website_url = primary_source["url"]
+                else:
+                    raise ValueError(f"No primary source found or allowed for entity {entity_id}")
+
+                print(f"  Fetching data for {entity_name} ({entity_website_url})...")
+                cleaned_text, source_type = await scrape_and_cache(
+                    entity_website_url,
+                    force_scrape=False, # Worker should rely on cache and refresh cadence
+                    hotel_name=entity_name,
+                    # Fallback URLs are not directly available in entity_sources for scrape_and_cache
+                    # Would need to implement logic to pass all entity_sources here or refactor scrape.
+                    # For MVP, assume primary_source is sufficient.
+                )
+                if not cleaned_text:
+                    raise ValueError(f"Scraping failed for {entity_name} ({entity_website_url}).")
+
+                # Prepare text for local extractor (if used)
+                local_text = _prepare_text_for_local(cleaned_text)
+                openai_text = cleaned_text[:15_000] if len(cleaned_text) > 15_000 else cleaned_text
+
+                # Determine extractor mode
+                extractor_mode = os.getenv("DEFAULT_EXTRACTOR_MODE", "all") # Default to all for now
+                # Or could be defined per-entity in the future
+
+                extracted_facts = None
+                extractor_meta = {}
+                score_obj = None
+
+                if extractor_mode in ["local", "all"]:
+                    print(f"  Extracting with Ollama for {entity_name}...")
+                    ollama_response, ollama_meta = ollama_extractor.extract(
+                        hotel_name=entity_name,
+                        text=f"{local_text}\n{entity_website_url}",
+                        schema_json=json.dumps(extraction_schema),
+                    )
+                    # Preprocess: Ollama sometimes returns [] instead of {} for sub-models
+                    if ollama_response and isinstance(ollama_response, dict):
+                        for key in ["energy_efficiency", "water_conservation", "waste_management", "local_community_engagement", "certifications"]:
+                            if key in ollama_response and ollama_response[key] == []:
+                                ollama_response[key] = {}
+                        ollama_response = normalize_facts_dict(ollama_response)
+
+                    if ollama_response:
+                        extracted_facts = ExtractedFacts.model_validate(ollama_response)
+                        score_obj = calculate_sustainability_score(extracted_facts, 0.8, scoring_rules) # Default confidence
+                        extractor_meta = {**ollama_meta, "extractor": "local", "model": ollama_extractor.model}
+                    else:
+                        print(f"  Ollama extraction failed for {entity_name}")
+                        extractor_meta = {**ollama_meta, "extractor": "local", "model": ollama_extractor.model, "error": "Extraction failed"}
+
+                # If "all" mode, could also run OpenAI and pick best or average.
+                # For MVP, let's stick to local if "all" is specified and local has facts.
+                # If local failed, maybe try OpenAI? For now, simple.
+
+                if not extracted_facts and extractor_mode in ["openai", "all"]:
+                    print(f"  Extracting with OpenAI for {entity_name}...")
+                    openai_facts, openai_evidence, openai_confidence, openai_meta = await extract_facts_openai(
+                        openai_text,
+                        extraction_schema,
+                        entity_website_url,
+                        force_extract=False,
+                    )
+                    if openai_facts:
+                        extracted_facts = normalize_extracted_facts(openai_facts)
+                        score_obj = calculate_sustainability_score(extracted_facts, openai_confidence, scoring_rules)
+                        extractor_meta = {**openai_meta, "extractor": "openai", "model": "gpt-4o-mini"}
+                    else:
+                        print(f"  OpenAI extraction failed for {entity_name}")
+                        extractor_meta = {**openai_meta, "extractor": "openai", "model": "gpt-4o-mini", "error": "Extraction failed"}
+                
+                if not extracted_facts or not score_obj:
+                    raise ValueError(f"No facts extracted for {entity_name} using mode {extractor_mode}.")
+
+                # Insert facts_snapshot
+                snapshot_data = {
+                    "entity_id": str(entity_id),
+                    "extractor": extractor_meta.get("extractor", "unknown"),
+                    "model": extractor_meta.get("model"),
+                    "facts": extracted_facts.model_dump(mode="json"),
+                    "evidence": extracted_facts.evidence_snippets, # Assuming evidence_snippets is directly in ExtractedFacts
+                    "meta": {
+                        "job_id": str(job_id),
+                        "run_id": supabase_client.worker_id,
+                        "durations": extractor_meta.get("duration_ms"),
+                        "tokens_in": extractor_meta.get("tokens_in"),
+                        "tokens_out": extractor_meta.get("tokens_out"),
+                        "cost_estimate_usd": extractor_meta.get("cost_estimate_usd"),
+                        **extractor_meta
+                    },
+                    "score": score_obj.total_score_final,
+                    # "label": score_obj.label # Removed: label is derived, not stored directly in snapshot
+                }
+                if args.dry_run:
+                    print(f"  DRY-RUN: Would insert snapshot: {json.dumps(snapshot_data, indent=2)}")
+                    snapshot_id = "dry-run-snapshot-id" # Placeholder
+                else:
+                    inserted_snapshot = await supabase_client.insert_snapshot(snapshot_data)
+                    if not inserted_snapshot:
+                        raise ValueError("Failed to insert facts_snapshot.")
+                    snapshot_id = UUID(inserted_snapshot["id"])
+                    print(f"  Facts snapshot {snapshot_id} inserted.")
+
+                # Diff vs current and decide auto-accept/pending_review
+                current_snapshot_data = await supabase_client.get_current_snapshot(entity_id)
+                current_facts = None
+                current_score = None
+                is_first_snapshot = True
+
+                if current_snapshot_data:
+                    is_first_snapshot = False
+                    current_facts = ExtractedFacts.model_validate(current_snapshot_data["facts"])
+                    # Reconstruct current_score for diffing
+                    current_score = SustainabilityScore(
+                        score_model_version="v1.0", # Assume v1.0 for existing
+                        raw_facts=current_facts,
+                        evidence=current_facts.evidence_snippets,
+                        confidence=0.8, # Default confidence
+                        score_breakdown=ScoreBreakdown(), # Placeholder
+                        total_score_raw=current_snapshot_data.get("score", 0.0), # Use stored score
+                        total_score_final=current_snapshot_data.get("score", 0.0),
+                    )
+                
+                diff_json = compute_facts_diff(current_facts, extracted_facts, current_score, score_obj)
+                auto_accept = should_auto_accept_diff(diff_json, is_first_snapshot)
+                
+                if args.dry_run:
+                    print(f"  DRY-RUN: Diff: {json.dumps(diff_json, indent=2)}")
+                    print(f"  DRY-RUN: Auto-accept: {auto_accept}")
+                else:
+                    if auto_accept:
+                        await supabase_client.upsert_current(entity_id, snapshot_id)
+                        print(f"  Diff auto-accepted. Current facts updated to snapshot {snapshot_id}.")
+                    else:
+                        await supabase_client.insert_proposed(entity_id, snapshot_id, diff_json)
+                        print(f"  Large diff detected. Facts proposed from snapshot {snapshot_id} for review.")
+
+                # Mark job success
+                if not args.dry_run:
+                    await supabase_client.mark_job_success(job_id)
+                    await supabase_client.update_entity_last_attempt_success(entity_id, is_success=True)
+                print(f"Job {job_id} completed successfully.")
+
+            except Exception as e:
+                error_msg = f"Worker failed for job {job_id}: {e}"
+                print(error_msg)
+                if not args.dry_run:
+                    await supabase_client.mark_job_failed(job_id, error_msg)
+                    await supabase_client.update_entity_last_attempt_success(entity_id, is_success=False)
+                print(f"Job {job_id} marked as failed.")
+            
+            if args.once:
+                break
+
+    except Exception as e:
+        print(f"Worker main loop error: {e}")
+
+async def worker_schedule_command(args: argparse.Namespace) -> None:
+    supabase_client = SupabaseClient()
+    print("Running scheduler...")
+
+    try:
+        # Select entities where status='active' AND (next_refresh_at <= now OR next_refresh_at is null)
+        # Using a direct query string to ensure correct date comparison in Supabase/PostgREST
+        now_utc = datetime.now(timezone.utc).isoformat()
+        url = (
+            f"{supabase_client.base_url}/entities?select=id,refresh_cadence_days,next_refresh_at,status&"
+            f"status=eq.active&"
+            f"or=(next_refresh_at.lte.{now_utc},next_refresh_at.is.null)"
+        )
+        
+        entities_to_schedule = await supabase_client._make_request("GET", url)
+        
+        if not entities_to_schedule:
+            print("No active entities found requiring refresh.")
+            return
+
+        print(f"Found {len(entities_to_schedule)} entities to schedule.")
+
+        for entity_data in entities_to_schedule:
+            entity_id = UUID(entity_data["id"])
+            refresh_cadence_days = entity_data["refresh_cadence_days"]
+
+            print(f"  Scheduling refresh job for entity {entity_id} (cadence: {refresh_cadence_days} days).")
+            
+            if not args.dry_run:
+                # Insert ingest_job(reason='refresh', scheduled_for=now)
+                job_payload = {
+                    "entity_id": str(entity_id),
+                    "reason": "refresh",
+                    "status": "queued",
+                    "scheduled_for": now_utc,
+                }
+                inserted_job = await supabase_client._make_request("POST", f"{supabase_client.base_url}/ingest_jobs", json_data=job_payload)
+                if not inserted_job:
+                    print(f"    Failed to insert ingest job for entity {entity_id}.")
+                    continue
+                print(f"    Inserted job {inserted_job[0]['id']}.")
+
+                # Update entities.next_refresh_at
+                next_refresh_at = datetime.now(timezone.utc) + timedelta(days=refresh_cadence_days)
+                await supabase_client.update_entity_next_refresh(entity_id, next_refresh_at)
+                print(f"    Updated entity {entity_id} next_refresh_at to {next_refresh_at.isoformat()}.")
+            else:
+                print(f"  DRY-RUN: Would schedule refresh job for entity {entity_id} and update next_refresh_at.")
+
+    except Exception as e:
+        print(f"Scheduler main loop error: {e}")
+
+
 def dry_run_command(_: argparse.Namespace) -> None:
     print("Performing dry-run of the scoring pipeline...")
 
-    scoring_rules_path = CONFIGS_DIR / "scoring_rules.yaml"
+    scoring_rules_path = CONFIGS_DIR / "extract_schema.json"
     if not scoring_rules_path.exists():
         print(f"Error: Scoring rules file not found at {scoring_rules_path}")
         return
@@ -389,10 +655,34 @@ def main() -> None:
     )
     dry_run_parser.set_defaults(func=dry_run_command)
 
+    worker_parser = subparsers.add_parser(
+        "worker", help="Supabase job worker and scheduler commands"
+    )
+    worker_subparsers = worker_parser.add_subparsers(
+        dest="worker_command", help="Worker commands"
+    )
+
+    worker_run_parser = worker_subparsers.add_parser(
+        "run", help="Run the sustainability fact extraction worker"
+    )
+    worker_run_parser.add_argument(
+        "--once", action="store_true", help="Run one job and exit"
+    )
+    worker_run_parser.add_argument(
+        "--dry-run", action="store_true", help="Do not write to DB, just log actions"
+    )
+    worker_run_parser.set_defaults(func=worker_run_command)
+
+    worker_schedule_parser = worker_subparsers.add_parser(
+        "schedule", help="Schedule new ingest jobs based on entity refresh cadences"
+    )
+    worker_schedule_parser.set_defaults(func=worker_schedule_command)
+
+
     args = parser.parse_args()
 
     if hasattr(args, "func"):
-        if args.command == "run":
+        if args.command == "run" or (args.command == "worker" and args.worker_command in ["run", "schedule"]):
             asyncio.run(args.func(args))
         else:
             args.func(args)
