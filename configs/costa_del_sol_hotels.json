@@ -1,19 +1,11 @@
 [
   {
-    "name": "MB Hostels Premium ECO - Adults Recommended",
-    "website": "https://mbhostels.com/"
-  },
-  {
     "name": "Málaga Hills Boutique & Wellness Eco-Hotel",
     "website": "https://malagahills.com/"
   },
   {
     "name": "Gran Hotel Miramar GL",
     "website": "https://www.granhotelmiramarmalaga.com/"
-  },
-  {
-    "name": "Anantara Villa Padierna Palace Benahavís Marbella Resort",
-    "website": "https://www.anantara.com/en/villa-padierna-marbella"
   },
   {
     "name": "Marbella Club Hotel",
@@ -36,18 +28,6 @@
     "website": "https://www.amarehotels.com/amare-marbella/"
   },
   {
-    "name": "Melia Costa del Sol",
-    "website": "https://www.melia.com/en/hotels/spain/torremolinos/melia-costa-del-sol"
-  },
-  {
-    "name": "Sol Príncipe",
-    "website": "https://www.melia.com/en/hotels/spain/torremolinos/sol-principe"
-  },
-  {
-    "name": "Hotel Riu Nautilus Torremolinos",
-    "website": "https://www.riu.com/en/hotel/spain/costa-del-sol/hotel-riu-nautilus/index.jsp"
-  },
-  {
     "name": "Sunset Beach Club Benalmádena",
     "website": "https://www.sunsetbeachclub.com/"
   },
@@ -64,19 +44,39 @@
     "website": "https://www.fuengirolabeach.com/"
   },
   {
-    "name": "Hotel El Puerto by Pierre & Vacances Fuengirola",
-    "website": "https://www.hotelelpuertofuengirola.com/"
-  },
-  {
-    "name": "Occidental Fuengirola",
-    "website": "https://www.barcelo.com/en-gb/occidental/hotels/spain/andalusia/fuengirola/occidental-fuengirola/"
-  },
-  {
     "name": "Hotel ILUNION Fuengirola",
     "website": "https://www.ilunionhotels.com/en/hotels/ilunion-fuengirola"
   },
   {
     "name": "Hotel Las Pirámides Resort Fuengirola",
     "website": "https://www.hotellaspiramides.com/"
+  },
+  {
+    "name": "Vincci Aleysa Boutique & Spa Benalmádena",
+    "website": "https://www.vinccialeysa.com/"
+  },
+  {
+    "name": "Kempinski Hotel Bahía Estepona",
+    "website": "https://www.kempinski.com/en/hotel-bahia/"
+  },
+  {
+    "name": "Hotel La Barracuda Torremolinos",
+    "website": "https://www.hotellabarracuda.com/"
+  },
+  {
+    "name": "Fuerte Marbella",
+    "website": "https://www.fuertehoteles.com/en/hotels/fuerte-marbella/"
+  },
+  {
+    "name": "Hotel Torremar Torre del Mar",
+    "website": "https://www.hoteltorremar.com/"
+  },
+  {
+    "name": "MAC Puerto Marina Benalmádena",
+    "website": "https://www.mac-hotels.com/en/mac-puerto-marina-benalmadena/"
+  },
+  {
+    "name": "Hotel San Fermín Benalmádena",
+    "website": "https://www.hotelsanfermin.com/"
   }
 ]

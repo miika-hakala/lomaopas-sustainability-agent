@@ -55,7 +55,7 @@ class EvidenceSnippet(BaseModel):
 
 
 class ExtractedFacts(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     energy_efficiency: EnergyEfficiencyFacts = Field(default_factory=EnergyEfficiencyFacts)
     water_conservation: WaterConservationFacts = Field(default_factory=WaterConservationFacts)
@@ -96,4 +96,7 @@ class Hotel(BaseModel):
 
     name: str
     website: HttpUrl
+    hotel_id: Optional[str] = None
+    location: Optional[str] = None
     booking_url: Optional[HttpUrl] = None
+    fallback_urls: Optional[List[str]] = None
